@@ -14,8 +14,14 @@ namespace icy
 			void clearnup();
 		private:
 			bool createInstance();
+			bool setupDebugCallback();
+			bool pickPhysicalDevice();
+			bool isDeviceSuitable();
+			int getDeviceScore();
 		private:
 			vk::Instance m_Instance;
+			VkDebugReportCallbackEXT m_CallBack;
+			vk::PhysicalDevice m_PhysicalDevice;
 		};
 	}
 }
