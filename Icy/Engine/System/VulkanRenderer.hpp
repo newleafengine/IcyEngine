@@ -16,8 +16,6 @@ namespace icy
 			bool createInstance();
 			bool setupDebugCallback();
 			bool pickPhysicalDevice();
-			bool isDeviceSuitable();
-			int getDeviceScore();
 		private:
 			vk::Instance m_Instance;
 			VkDebugReportCallbackEXT m_CallBack;

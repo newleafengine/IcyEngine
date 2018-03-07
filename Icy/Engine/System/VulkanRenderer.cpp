@@ -126,33 +126,15 @@ bool icy::System::VulkanRenderer::pickPhysicalDevice()
 	{
 		std::cout << "Device count == 0, no GPU found\n";
 	}
-	bool deviceFound = false;
-	int score = 0;
-	for (const auto& device : phyDevices)
+	else if (phyDevices.size() == 1)
 	{
-		m_PhysicalDevice = device;
-		if (isDeviceSuitable())
-		{
-			deviceFound = true;
-			int currentScore = getDeviceScore();
-			if (score < currentScore)
-				score = currentScore;
-		}
+		// if the size is 1, pick this device
+		m_PhysicalDevice = phyDevices[0];
+	}
+	else
+	{
+		// we have multiple devices, poll them to pick the best one
+		/// ...
 	}
 
-	if (!deviceFound)
-		return false;
-
-}
-
-bool icy::System::VulkanRenderer::isDeviceSuitable()
-{
-	auto properties = m_PhysicalDevice.getProperties();
-	auto features = m_PhysicalDevice.getFeatures();
-	return true;
-}
-
-int icy::System::VulkanRenderer::getDeviceScore()
-{
-	return 0;
 }
