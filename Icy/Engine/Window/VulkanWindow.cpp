@@ -1,5 +1,6 @@
 #include "VulkanWindow.hpp"
 #include <SDL\SDL.h>
+#include <iostream>
 
 icy::Window::VulkanWindow::VulkanWindow()
 {
@@ -20,7 +21,12 @@ bool icy::Window::VulkanWindow::createWindow(const std::string title, const int 
 	if (m_Window == nullptr)
 		return false;
 
-	m_VRenderer.initVulkan();
+	SDL_SysWMinfo systemInfo;
+	SDL_VERSION(&systemInfo.version);
+	SDL_GetWindowWMInfo(m_Window, &systemInfo);
 
-	return true;
+	if (m_VRenderer.initVulkan(systemInfo))
+		return true;
+	else
+		return false;
 }

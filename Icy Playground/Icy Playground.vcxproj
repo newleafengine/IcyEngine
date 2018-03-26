@@ -73,12 +73,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.68.0\Include;C:\Users\Omar\source\repos\Icy\Icy;C:\Users\Omar\Documents\Dependencies\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.68.0\Lib;C:\Users\Omar\source\repos\Icy\x64\Debug;C:\Users\Omar\Documents\Dependencies\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.1.70.1\Include;C:\Users\omarti26\source\repos\Icy\Icy;C:\Users\omarti26\Documents\Dependencies\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.1.70.1\Lib;C:\Users\omarti26\source\repos\Icy\x64\Debug;C:\Users\omarti26\Documents\Dependencies\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.68.0\Include;C:\Users\Omar\source\repos\Icy\Icy;C:\Users\Omar\Documents\Dependencies\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.68.0\Lib;C:\Users\Omar\source\repos\Icy\x64\Release;C:\Users\Omar\Documents\Dependencies\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.1.70.1\Include;C:\Users\omarti26\source\repos\Icy\Icy;C:\Users\omarti26\Documents\Dependencies\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.1.70.1\Lib;C:\Users\omarti26\source\repos\Icy\x64\Release;C:\Users\omarti26\Documents\Dependencies\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

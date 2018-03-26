@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <SDL\SDL_render.h>
-
+#include <SDL\SDL_events.h>
 namespace icy
 {
 	namespace Window 
@@ -19,6 +19,7 @@ namespace icy
 			// height : The height of the Window
 			// flags : SDL flags, look at SDL wiki for more info
 			virtual bool createWindow(const std::string title, const int xPos, const int yPos, const int width, const int height, const Uint32 flags) = 0;
+			virtual bool pollEvents(SDL_Event* ev) { return SDL_PollEvent(ev); }
 			// Checks if the window is still valid and opened
 			virtual bool isOpen() = 0;
 			virtual void close() = 0;
