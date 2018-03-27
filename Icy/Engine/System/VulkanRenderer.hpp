@@ -19,8 +19,19 @@ constexpr bool enableValidationLayers = true;
 constexpr bool enableValidationLayers = false;
 #endif
 
+#undef max
+#undef min
+
 namespace icy
 {
+	// This struct stores the support for the swapchains
+	struct SwapChainSupportDetails
+	{
+		vk::SurfaceCapabilitiesKHR capabilities;
+		std::vector<vk::SurfaceFormatKHR> formats;
+		std::vector<vk::PresentModeKHR> presentModes;
+	};
+
 	// This struct stores the vk::QueueFamilyProperties as well as the index to that queue family
 	struct QueueFamilyProps
 	{
@@ -47,8 +58,15 @@ namespace icy
 			bool pickPhysicalDevice();
 			// stores all queue families in the m_QueueFamProps vector
 			void getQueueFamilies();
+			SwapChainSupportDetails querySwapChainSupport();
 			// creates a logical device which the vulkan api can communicate through
 			bool createLogicalDevice();
+			// creates the swapchain
+			bool createSwapChain();
+			// picks the features we need for our swapchain
+			vk::SurfaceFormatKHR chooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> formats);
+			vk::PresentModeKHR chooseSwapPresentMode(std::vector<vk::PresentModeKHR> modes);
+			vk::Extent2D chooseSwapExtents(vk::SurfaceCapabilitiesKHR capabilities);
 			// cleanup vulkan
 			void cleanup();
 		private:
@@ -59,11 +77,14 @@ namespace icy
 			vk::PhysicalDevice m_PhysicalDevice;					// physical device handle
 			std::vector<icy::QueueFamilyProps> m_QueueFamProps;		// family queue properties for all family queues
 			int	m_CurrentGraphicQueue;								// the current queue who's index we will use to send graphical commands to
+			int m_CurrentPresentQueue;
 			vk::Device m_Device;									// logical device
 			vk::Queue m_GraphicsQueue;								// the queue to send graphical commands to
+			vk::Queue m_PresentQueue;								// the queue to present the data to the surface
 
 			// screen concepts
 			vk::SurfaceKHR m_Surface;								// the surface is created from either a x11 or winapi window
+
 		};
 	}
 }

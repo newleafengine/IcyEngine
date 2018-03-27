@@ -1,5 +1,6 @@
 #include "VulkanRenderer.hpp"
 #include <iostream>
+#include <set>
 
 // the debug call back that outputs the info to the console
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t obj, size_t location, int32_t code, const char* layerPrefix, const char* msg, void* userData) 
@@ -54,6 +55,8 @@ bool icy::System::VulkanRenderer::initVulkan(const SDL_SysWMinfo & sysInfo)
 	if (!pickPhysicalDevice())
 		return false;
 	if (!createLogicalDevice())
+		return false;
+	if (!createSwapChain())
 		return false;
 	return true;
 }
@@ -131,6 +134,7 @@ bool icy::System::VulkanRenderer::createSurface(const SDL_SysWMinfo & sysInfo)
 		createInfo.window = sysInfo.info.X11.window;
 
 		auto result = m_Instance.createXlibSurfaceKHR(&createInfo, nullptr, &m_Surface);
+		if (result == vk::Result::eSuccess)
 			return true;
 #endif // !_WIN32
 	}
@@ -180,28 +184,46 @@ void icy::System::VulkanRenderer::getQueueFamilies()
 		icy::QueueFamilyProps prop;
 		prop.index = i;
 		prop.props = queueProps[i];
+		vk::Bool32 presentSupport = m_PhysicalDevice.getSurfaceSupportKHR(i, m_Surface);
 		if (prop.props.queueFlags & vk::QueueFlagBits::eGraphics)
 			m_CurrentGraphicQueue = i;
+		if (presentSupport)
+			m_CurrentPresentQueue = i;
 		m_QueueFamProps.push_back(prop);
 	}
 }
 
+icy::SwapChainSupportDetails icy::System::VulkanRenderer::querySwapChainSupport()
+{
+	SwapChainSupportDetails scsd;
+	scsd.capabilities = m_PhysicalDevice.getSurfaceCapabilitiesKHR(m_Surface);
+	scsd.formats = m_PhysicalDevice.getSurfaceFormatsKHR(m_Surface);
+	scsd.presentModes = m_PhysicalDevice.getSurfacePresentModesKHR(m_Surface);
+	return scsd;
+}
+
 bool icy::System::VulkanRenderer::createLogicalDevice()
 {
-	// TODO check for extensions
+	// check for extensions
+	auto extensions = m_PhysicalDevice.enumerateDeviceExtensionProperties();
+	const char* swapchainName = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 
-	// check for layer
-	
-
-	vk::DeviceQueueCreateInfo dqCreateInfo;
-	dqCreateInfo.queueFamilyIndex = m_CurrentGraphicQueue;
-	dqCreateInfo.queueCount = 1;
-	float queueProp = 1.0f;
-	dqCreateInfo.pQueuePriorities = &queueProp;
+	getQueueFamilies();
+	std::vector<vk::DeviceQueueCreateInfo> dqci;
+	std::set<int> uniqueQueueFamilies = { m_CurrentGraphicQueue, m_CurrentPresentQueue };
+	float queuePrio = 1.0f;
+	for (int queueFamily : uniqueQueueFamilies)
+	{
+		vk::DeviceQueueCreateInfo dqCreateInfo;
+		dqCreateInfo.queueFamilyIndex = queueFamily;
+		dqCreateInfo.queueCount = 1;
+		dqCreateInfo.pQueuePriorities = &queuePrio;
+		dqci.push_back(dqCreateInfo);
+	}
 	vk::PhysicalDeviceFeatures df = {};
 	vk::DeviceCreateInfo dci = {};
-	dci.pQueueCreateInfos = &dqCreateInfo;
-	dci.queueCreateInfoCount = 1;
+	dci.queueCreateInfoCount = dqci.size();
+	dci.pQueueCreateInfos = dqci.data();
 	dci.pEnabledFeatures = &df;
 	if (enableValidationLayers)
 	{
@@ -212,14 +234,78 @@ bool icy::System::VulkanRenderer::createLogicalDevice()
 	{
 		dci.enabledLayerCount = 0;
 	}
+	dci.enabledExtensionCount = 1;
+	dci.ppEnabledExtensionNames = &swapchainName;
 	auto result = m_PhysicalDevice.createDevice(&dci, nullptr, &m_Device);
 	if (result == vk::Result::eSuccess)
 	{
 		m_GraphicsQueue = m_Device.getQueue(m_CurrentGraphicQueue, 0);
+		m_PresentQueue = m_Device.getQueue(m_CurrentPresentQueue, 0);
 		return true;
 	}
 	else
 		return false;
+}
+
+bool icy::System::VulkanRenderer::createSwapChain()
+{
+	auto scs = querySwapChainSupport();
+	auto surfaceFormat = chooseSwapSurfaceFormat(scs.formats);
+	auto presentMode = chooseSwapPresentMode(scs.presentModes);
+	auto extent = chooseSwapExtents(scs.capabilities);
+	return true;
+}
+
+vk::SurfaceFormatKHR icy::System::VulkanRenderer::chooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> formats)
+{
+	vk::SurfaceFormatKHR desiredFormat = formats[0];
+	if (formats.size() == 1 && formats[0].format == vk::Format::eUndefined)
+	{
+		desiredFormat.format = vk::Format::eB8G8R8A8Unorm;
+		desiredFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
+		return desiredFormat;
+	}
+	for (const auto& format : formats)
+	{
+		if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+		{
+			return format;
+		}
+	}
+
+	return desiredFormat;
+}
+
+vk::PresentModeKHR icy::System::VulkanRenderer::chooseSwapPresentMode(std::vector<vk::PresentModeKHR> modes)
+{
+	vk::PresentModeKHR bestMode = vk::PresentModeKHR::eFifo;
+	for (const auto& mode : modes)
+	{
+		if (mode == vk::PresentModeKHR::eMailbox)
+		{
+			return mode;
+		}
+		else if (mode == vk::PresentModeKHR::eImmediate)
+		{
+			bestMode = mode;
+		}
+	}
+	return bestMode;
+}
+
+vk::Extent2D icy::System::VulkanRenderer::chooseSwapExtents(vk::SurfaceCapabilitiesKHR capabilities)
+{
+	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+		return capabilities.currentExtent;
+	}
+	else {
+		vk::Extent2D actualExtent = { 800,500 };
+
+		actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+		actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+
+		return actualExtent;
+	}
 }
 
 void icy::System::VulkanRenderer::cleanup()
