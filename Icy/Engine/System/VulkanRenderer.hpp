@@ -67,6 +67,8 @@ namespace icy
 			vk::SurfaceFormatKHR chooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> formats);
 			vk::PresentModeKHR chooseSwapPresentMode(std::vector<vk::PresentModeKHR> modes);
 			vk::Extent2D chooseSwapExtents(vk::SurfaceCapabilitiesKHR capabilities);
+			void createImageViews();
+			bool createGraphicsPipeline();
 			// cleanup vulkan
 			void cleanup();
 		private:
@@ -84,7 +86,11 @@ namespace icy
 
 			// screen concepts
 			vk::SurfaceKHR m_Surface;								// the surface is created from either a x11 or winapi window
-
+			vk::SwapchainKHR m_SwapChain;							// the swapchain to draw images too
+			std::vector<vk::Image> m_Image;							// the vector of our swap chain images
+			vk::Format m_SwapChainFormat;							// the swap chain format 
+			vk::Extent2D m_SwapChainExtent;							// the swap chain extent ( width and height )
+			std::vector<vk::ImageView> m_ImageView;					// the image view for each image
 		};
 	}
 }

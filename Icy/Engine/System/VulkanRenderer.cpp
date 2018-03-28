@@ -58,6 +58,7 @@ bool icy::System::VulkanRenderer::initVulkan(const SDL_SysWMinfo & sysInfo)
 		return false;
 	if (!createSwapChain())
 		return false;
+	createImageViews();
 	return true;
 }
 
@@ -79,25 +80,16 @@ bool icy::System::VulkanRenderer::createInstance()
 		extensionStrings.push_back(ext.extensionName);
 	}
 
-	// Layers
-	auto layers = vk::enumerateInstanceLayerProperties();
-	std::string validationLayer = "VK_LAYER_LUNARG_standard_validation";
-	for (auto &layer : layers)
-	{
-		if (layer.layerName == validationLayer)
-		{
-			m_ValidationLayers.push_back(layer.layerName);
-		}
-	}
+	m_ValidationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
 
 	// Create the instance
 	vk::InstanceCreateInfo createInfo;
 	createInfo.pApplicationInfo = &appInfo;
-	createInfo.enabledExtensionCount = extensions.size();
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 	createInfo.ppEnabledExtensionNames = extensionStrings.data();
 	if (enableValidationLayers)
 	{
-		createInfo.enabledLayerCount = m_ValidationLayers.size();
+		createInfo.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
 		createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
 	}
 	else
@@ -222,12 +214,12 @@ bool icy::System::VulkanRenderer::createLogicalDevice()
 	}
 	vk::PhysicalDeviceFeatures df = {};
 	vk::DeviceCreateInfo dci = {};
-	dci.queueCreateInfoCount = dqci.size();
+	dci.queueCreateInfoCount = static_cast<uint32_t>(dqci.size());
 	dci.pQueueCreateInfos = dqci.data();
 	dci.pEnabledFeatures = &df;
 	if (enableValidationLayers)
 	{
-		dci.enabledLayerCount = m_ValidationLayers.size();
+		dci.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
 		dci.ppEnabledLayerNames = m_ValidationLayers.data();
 	}
 	else
@@ -252,7 +244,44 @@ bool icy::System::VulkanRenderer::createSwapChain()
 	auto scs = querySwapChainSupport();
 	auto surfaceFormat = chooseSwapSurfaceFormat(scs.formats);
 	auto presentMode = chooseSwapPresentMode(scs.presentModes);
-	auto extent = chooseSwapExtents(scs.capabilities);
+	m_SwapChainExtent = chooseSwapExtents(scs.capabilities);
+	m_SwapChainFormat = surfaceFormat.format;
+
+	auto imageCount = scs.capabilities.minImageCount + 1;
+	if (scs.capabilities.maxImageCount > 0 && imageCount > scs.capabilities.maxImageCount)
+	{
+		imageCount = scs.capabilities.maxImageCount;
+	}
+	vk::SwapchainCreateInfoKHR createInfo;
+	createInfo.surface = m_Surface;
+	createInfo.minImageCount = imageCount;
+	createInfo.imageFormat = surfaceFormat.format;
+	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.imageExtent = m_SwapChainExtent;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+	uint32_t queueFamilyIndices[] = { static_cast<uint32_t>(m_CurrentGraphicQueue), static_cast<uint32_t>(m_CurrentPresentQueue)};
+	if (m_CurrentGraphicQueue != m_CurrentPresentQueue)
+	{
+		createInfo.imageSharingMode = vk::SharingMode::eConcurrent;
+		createInfo.queueFamilyIndexCount = 2;
+		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+	}
+	else
+	{
+		createInfo.imageSharingMode = vk::SharingMode::eExclusive;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+	}
+	createInfo.preTransform = scs.capabilities.currentTransform;
+	createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+	createInfo.presentMode = presentMode;
+	createInfo.clipped = VK_TRUE;
+	createInfo.oldSwapchain = vk::SwapchainKHR::SwapchainKHR();
+	m_SwapChain = m_Device.createSwapchainKHR(createInfo, nullptr);
+	if (m_SwapChain == vk::SwapchainKHR())
+		return false;
+	m_Image = m_Device.getSwapchainImagesKHR(m_SwapChain);
 	return true;
 }
 
@@ -262,7 +291,7 @@ vk::SurfaceFormatKHR icy::System::VulkanRenderer::chooseSwapSurfaceFormat(std::v
 	if (formats.size() == 1 && formats[0].format == vk::Format::eUndefined)
 	{
 		desiredFormat.format = vk::Format::eB8G8R8A8Unorm;
-		desiredFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
+		desiredFormat.colorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
 		return desiredFormat;
 	}
 	for (const auto& format : formats)
@@ -308,10 +337,38 @@ vk::Extent2D icy::System::VulkanRenderer::chooseSwapExtents(vk::SurfaceCapabilit
 	}
 }
 
+void icy::System::VulkanRenderer::createImageViews()
+{
+	m_ImageView.resize(m_Image.size());
+	for (int i = 0; i < m_Image.size(); i++)
+	{
+		vk::ImageViewCreateInfo createInfo;
+		createInfo.image = m_Image[i];
+		createInfo.viewType = vk::ImageViewType::e2D;
+		createInfo.format = m_SwapChainFormat;
+		createInfo.components.r = vk::ComponentSwizzle::eIdentity;
+		createInfo.components.g = vk::ComponentSwizzle::eIdentity;
+		createInfo.components.b = vk::ComponentSwizzle::eIdentity;
+		createInfo.components.a = vk::ComponentSwizzle::eIdentity;
+		createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+		m_ImageView[i] = m_Device.createImageView(createInfo);
+	}
+}
+
+bool icy::System::VulkanRenderer::createGraphicsPipeline()
+{
+	return false;
+}
+
 void icy::System::VulkanRenderer::cleanup()
 {
 	if (enableValidationLayers)
 		DestroyDebugReportCallbackEXT(m_Instance, m_CallBack, nullptr);
+	m_Device.destroySwapchainKHR(m_SwapChain);
 	m_Instance.destroySurfaceKHR(m_Surface);
 	m_Device.destroy();
 	m_Instance.destroy();
